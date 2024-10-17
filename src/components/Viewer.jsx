@@ -16,8 +16,50 @@ const Viewer = () => {
   const viewPositionRef = useRef(default_position);
   const startPosRef = useRef(default_position);
   const rotationRef = useRef(0);
-  const [zoom, setZoom] = useState(0);
+  const isDrawingRectRef = useRef(false);
+  const rectPosRef = useRef(default_position);
+  const svgRectCoordRef = useRef(default_position);
+  const [zoom, setZoom] = useState(1);
   const [currentImg, setCurrentImg] = useState(0);
+  const [isMove, setIsMove] = useState(true);
+  const [isDrawRect, setIsDrawRect] = useState(false);
+  const [saveRect, setSaveRect] = useState([]);
+  const [transcoord, setTransCoord] = useState(default_position);
+  const [rotateValue, setRotateValue] = useState(0);
+
+  const rotatePoint = (x, y, angle, centerX, centerY) => {
+    const radians = (angle * Math.PI) / 180;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    const dx = x - centerX;
+    const dy = y - centerY;
+
+    return {
+      x: dx * cos - dy * sin + centerX,
+      y: dx * sin + dy * cos + centerY,
+    };
+  };
+
+  const getSvgCoordinates = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+
+    const mouseX = (e.clientX - rect.left) / scaleRef.current;
+    const mouseY = (e.clientY - rect.top) / scaleRef.current;
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    const { x: offsetSvgX, y: offsetSvgY } = rotatePoint(
+      mouseX,
+      mouseY,
+      -rotationRef.current,
+      centerX,
+      centerY
+    );
+
+    return { offsetSvgX, offsetSvgY };
+  };
 
   const loadImage = () => {
     const canvas = canvasRef.current;
@@ -56,6 +98,7 @@ const Viewer = () => {
 
   const handleReset = () => {
     scaleRef.current = 1;
+    setRotateValue(0);
     rotationRef.current = 0;
     setZoom(0);
     viewPositionRef.current = default_position;
@@ -78,6 +121,7 @@ const Viewer = () => {
 
   const handleRotate = (direc) => {
     rotationRef.current += direc;
+    setRotateValue(rotationRef.current);
     requestAnimationFrame(() => {
       loadImage();
     });
@@ -107,6 +151,10 @@ const Viewer = () => {
     };
     requestAnimationFrame(() => {
       loadImage();
+      setTransCoord({
+        x: viewPositionRef.current.x,
+        y: viewPositionRef.current.y,
+      });
     });
   };
 
@@ -128,6 +176,10 @@ const Viewer = () => {
     }
     requestAnimationFrame(() => {
       loadImage();
+      setTransCoord({
+        x: viewPositionRef.current.x,
+        y: viewPositionRef.current.y,
+      });
     });
   };
 
@@ -140,7 +192,6 @@ const Viewer = () => {
     const ys = (centerY - viewPositionRef.current.y) / scaleRef.current;
 
     const newScale = scaleRef.current + zoomValue;
-    console.log({ newScale });
     setZoom(newScale);
     if (newScale >= 1 && newScale <= 40) {
       scaleRef.current = newScale;
@@ -157,7 +208,95 @@ const Viewer = () => {
     }
     requestAnimationFrame(() => {
       loadImage();
+      setTransCoord({
+        x: viewPositionRef.current.x,
+        y: viewPositionRef.current.y,
+      });
     });
+  };
+
+  const drawRectStart = (e) => {
+    const canvas = canvasRef.current;
+    const { offsetX, offsetY } = e.nativeEvent;
+    const { offsetSvgX, offsetSvgY } = getSvgCoordinates(e);
+
+    isDrawingRectRef.current = true;
+    rectPosRef.current = {
+      x: offsetX,
+      y: offsetY,
+    };
+    svgRectCoordRef.current = {
+      x: offsetSvgX,
+      y: offsetSvgY,
+    };
+    console.log({ offsetX }, { offsetY }, { offsetSvgX }, { offsetSvgY });
+    const context = canvas.getContext("2d");
+    context.beginPath();
+  };
+
+  const drawRect = (e) => {
+    if (!isDrawingRectRef.current) return;
+    const canvas = canvasRef.current;
+    const { offsetX, offsetY } = e.nativeEvent;
+
+    const context = canvas.getContext("2d");
+    requestAnimationFrame(() => {
+      loadImage();
+      context.save();
+      context.strokeStyle = "red";
+      context.strokeRect(
+        rectPosRef.current.x,
+        rectPosRef.current.y,
+        offsetX - rectPosRef.current.x,
+        e.shiftKey
+          ? offsetX - rectPosRef.current.x
+          : offsetY - rectPosRef.current.y
+      );
+      context.restore();
+    });
+  };
+
+  const drawEndRect = (e) => {
+    isDrawingRectRef.current = false;
+    drawConvertToSVGRect(e);
+  };
+
+  const drawConvertToSVGRect = (e) => {
+    const { offsetX, offsetY } = e.nativeEvent;
+    const svgPathX = rectPosRef.current.x;
+    const svgPathY = rectPosRef.current.y;
+    const svgRotatePathX = svgRectCoordRef.current.x;
+    const svgRotatePathY = svgRectCoordRef.current.y;
+
+    const rectX = svgRotatePathX;
+    const rectY = svgRotatePathY;
+    const rectWidth = offsetX - svgPathX;
+    const rectHeight = e.shiftKey ? offsetX - svgPathX : offsetY - svgPathY;
+
+    if (rectWidth > 0 && rectHeight > 0) {
+      const newSvgRect = (
+        <rect
+          key={saveRect.length}
+          x={rectX - viewPositionRef.current.x}
+          y={rectY - viewPositionRef.current.y}
+          width={Math.abs(rectWidth)}
+          height={Math.abs(rectHeight)}
+          stroke="red"
+          strokeWidth="2"
+          fill="none"
+          transform={`rotate(${-rotationRef.current},${svgRotatePathX},${svgRotatePathY})`}
+        />
+      );
+      setSaveRect((prev) => [
+        ...prev,
+        {
+          img_id: currentImg,
+          key: newSvgRect.key,
+          type: newSvgRect.type,
+          props: newSvgRect.props,
+        },
+      ]);
+    }
   };
 
   useEffect(() => {
@@ -169,14 +308,68 @@ const Viewer = () => {
 
   return (
     <div>
-      <div>
-        <canvas
-          ref={canvasRef}
-          onMouseDown={(e) => handleMouseDown(e)}
-          onMouseMove={(e) => handleMouseMove(e)}
-          onMouseUp={(e) => handleMouseUp(e)}
-          onWheel={(e) => handleWheel(e)}
-        ></canvas>
+      <div
+        style={{
+          position: "relative",
+          border: "2px solid red",
+          width: "1920px",
+          height: "1080px",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: "1920px",
+            height: "1080px",
+            // transform: `scale(${scaleRef.current})`,
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            onMouseDown={(e) => {
+              isMove && handleMouseDown(e);
+              isDrawRect && drawRectStart(e);
+            }}
+            onMouseMove={(e) => {
+              isMove && handleMouseMove(e);
+              isDrawRect && drawRect(e);
+            }}
+            onMouseUp={(e) => {
+              isMove && handleMouseUp(e);
+              isDrawRect && drawEndRect(e);
+            }}
+            onWheel={(e) => handleWheel(e)}
+          ></canvas>
+          <svg
+            width={1920}
+            height={1080}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              pointerEvents: "none",
+              transform: `scale(${scaleRef.current}) translate(${transcoord.x}px ,${transcoord.y}px) rotate(${rotationRef.current}deg)`,
+            }}
+          >
+            {saveRect.map((el) => {
+              if (el.img_id === currentImg)
+                return (
+                  <rect
+                    key={el.key}
+                    width={el.props.width}
+                    height={el.props.height}
+                    x={el.props.x}
+                    y={el.props.y}
+                    stroke={el.props.stroke}
+                    strokeWidth={el.props.strokeWidth}
+                    fill={el.props.fill}
+                    transform={el.props.transform}
+                  />
+                );
+            })}
+          </svg>
+        </div>
       </div>
       <div>
         <button onClick={() => handleReset()}>Reset Button</button>
@@ -190,6 +383,14 @@ const Viewer = () => {
         </button>
         <button onClick={handlePreviousImage}>이전</button>
         <button onClick={handleNextImage}>다음</button>
+        <button
+          onClick={() => {
+            setIsDrawRect(!isDrawRect);
+            isDrawRect ? setIsMove(true) : setIsMove(false);
+          }}
+        >
+          {isDrawRect ? "Stop Rect" : "Start Rect"}
+        </button>
       </div>
     </div>
   );
