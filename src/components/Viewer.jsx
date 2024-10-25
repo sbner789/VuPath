@@ -19,6 +19,7 @@ const Viewer = () => {
   const isDrawingRectRef = useRef(false);
   const rectPosRef = useRef(default_position);
   const svgRectCoordRef = useRef(default_position);
+  const transCoordRef = useRef(default_position);
   const [zoom, setZoom] = useState(1);
   const [currentImg, setCurrentImg] = useState(0);
   const [isMove, setIsMove] = useState(true);
@@ -176,10 +177,20 @@ const Viewer = () => {
     }
     requestAnimationFrame(() => {
       loadImage();
-      setTransCoord({
+      // setTransCoord({
+      //   x: viewPositionRef.current.x,
+      //   y: viewPositionRef.current.y,
+      // });
+      transCoordRef.current = {
         x: viewPositionRef.current.x,
         y: viewPositionRef.current.y,
-      });
+      };
+      console.log(
+        transcoord.x,
+        transcoord.y,
+        viewPositionRef.current.x,
+        viewPositionRef.current.y
+      );
     });
   };
 
@@ -208,10 +219,14 @@ const Viewer = () => {
     }
     requestAnimationFrame(() => {
       loadImage();
-      setTransCoord({
+      // setTransCoord({
+      //   x: viewPositionRef.current.x,
+      //   y: viewPositionRef.current.y,
+      // });
+      transCoordRef.current = {
         x: viewPositionRef.current.x,
         y: viewPositionRef.current.y,
-      });
+      };
     });
   };
 
@@ -349,7 +364,7 @@ const Viewer = () => {
               top: 0,
               left: 0,
               pointerEvents: "none",
-              transform: `scale(${scaleRef.current}) translate(${transcoord.x}px ,${transcoord.y}px) rotate(${rotationRef.current}deg)`,
+              transform: `translate(${transcoord.x}px ,${transcoord.y}px) rotate(${rotationRef.current}deg)`,
             }}
           >
             {saveRect.map((el) => {

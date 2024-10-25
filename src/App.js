@@ -1,9 +1,9 @@
-import Viewer from './components/Viewer';
+import ViewTemplate from './components/ViewTemplate';
 
 function App() {
   return (
     <div className="App">
-      <Viewer />
+      <ViewTemplate imgSizeW={1920} imgSizeH={1080} />
     </div>
   );
 }
