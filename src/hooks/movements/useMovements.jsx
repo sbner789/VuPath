@@ -1,20 +1,27 @@
 import React, { useRef, useState } from "react";
 
+const default_position = {
+  x: 0,
+  y: 0,
+};
+
 const useMovements = ({
   container,
+  images,
+  currentImg,
+  setCurrentImg,
   scale,
   setScale,
   setRotate,
   moveOffset,
   setMoveOffset,
-  defaultOffset,
 }) => {
   const panningRef = useRef(false);
-  const lastMousePosRef = useRef(defaultOffset);
-  const [startPos, setStartPos] = useState(defaultOffset);
+  const lastMousePosRef = useRef(default_position);
+  const [startPos, setStartPos] = useState(default_position);
 
   const zoomIntensity = 0.25;
-  const maxScale = 10;
+  const maxScale = 40;
   const minScale = 1;
 
   const zoomAble = (direction, mouseX, mouseY) => {
@@ -80,6 +87,18 @@ const useMovements = ({
     setRotate((prev) => prev + rot);
   };
 
+  const handleNext = () => {
+    if (images.length - 1 > currentImg) {
+      setCurrentImg((prev) => prev + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentImg > 0) {
+      setCurrentImg((prev) => prev - 1);
+    }
+  };
+
   return {
     handleWheel,
     handleZoom,
@@ -87,6 +106,8 @@ const useMovements = ({
     handleMove,
     handleMoveStop,
     handleRotate,
+    handleNext,
+    handlePrev,
   };
 };
 export default useMovements;

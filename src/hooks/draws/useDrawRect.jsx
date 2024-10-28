@@ -1,69 +1,43 @@
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
+import useCanvas from "./useCanvas";
+
+const defaultPosition = { x: 0, y: 0 };
 
 const useDrawRect = ({
-  drawCanvas,
+  canvasCurrent,
   useImg,
   currentImg,
-  scale,
   rotate,
-  defaultOffset,
-  imageSizeW,
-  imageSizeH,
+  scale,
+  setSvgSize,
+  imgSizeW,
+  imgSizeH,
 }) => {
   const [saveRect, setSaveRect] = useState([]);
   const isDrawingRectRef = useRef(false);
-  const rectPosRef = useRef(defaultOffset);
-  const svgRectCoordRef = useRef(defaultOffset);
+  const rectPosRef = useRef(defaultPosition);
+  const svgRectCoordRef = useRef(defaultPosition);
 
-  const getCanvasCoordinates = (e) => {
-    const canvas = drawCanvas.current;
-    const rect = canvas.getBoundingClientRect();
+  const {
+    getCanvasElements,
+    getCanvasCoordinates,
+    getSvgCoordinates,
+    imageSetup,
+  } = useCanvas({
+    canvasCurrent: canvasCurrent,
+    useImg: useImg,
+    rotate: rotate,
+    scale: scale,
+    imgSizeW: imgSizeW,
+    imgSizeH: imgSizeH,
+    setSvgSize: setSvgSize,
+  });
 
-    const offsetX = (e.clientX - rect.left) / scale;
-    const offsetY = (e.clientY - rect.top) / scale;
-
-    return { offsetX, offsetY };
-  };
-
-  const rotatePoint = (x, y, angle, centerX, centerY) => {
-    const radians = (angle * Math.PI) / 180;
-    const cos = Math.cos(radians);
-    const sin = Math.sin(radians);
-    const dx = x - centerX;
-    const dy = y - centerY;
-
-    return {
-      x: dx * cos - dy * sin + centerX,
-      y: dx * sin + dy * cos + centerY,
-    };
-  };
-
-  const getSvgCoordinates = (e) => {
-    const canvas = drawCanvas.current;
-    const rect = canvas.getBoundingClientRect();
-
-    const mouseX = (e.clientX - rect.left) / scale;
-    const mouseY = (e.clientY - rect.top) / scale;
-
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-
-    const { x: offsetSvgX, y: offsetSvgY } = rotatePoint(
-      mouseX,
-      mouseY,
-      -rotate,
-      centerX,
-      centerY
-    );
-
-    return { offsetSvgX, offsetSvgY };
-  };
-
+  // 도형의 첫 시작점 가져가기
   const drawStartRect = (e) => {
+    const { context } = getCanvasElements();
     const { offsetX, offsetY } = getCanvasCoordinates(e);
     const { offsetSvgX, offsetSvgY } = getSvgCoordinates(e);
-
-    console.log({ offsetX }, { offsetY }, { offsetSvgX }, { offsetSvgY });
 
     isDrawingRectRef.current = true;
     rectPosRef.current = {
@@ -74,40 +48,24 @@ const useDrawRect = ({
       x: offsetSvgX,
       y: offsetSvgY,
     };
-
-    const canvas = drawCanvas.current;
-    const context = canvas.getContext("2d");
     context.beginPath();
   };
 
+  // 도형 그리기
   const drawRect = (e) => {
     if (!isDrawingRectRef.current) return;
+    const { context } = getCanvasElements();
     const { offsetX, offsetY } = getCanvasCoordinates(e);
 
-    const imageWidth = imageSizeW;
-    const imageHeight = imageSizeH;
-    const canvas = drawCanvas.current;
-    const context = canvas.getContext("2d");
     requestAnimationFrame(() => {
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.save();
-      context.translate(canvas.width / 2, canvas.height / 2);
-      context.rotate((rotate * Math.PI) / 180);
-      context.drawImage(
-        useImg.current,
-        -imageWidth / 2,
-        -imageHeight / 2,
-        imageWidth,
-        imageHeight
-      );
-      context.restore();
+      imageSetup();
       context.save();
       context.strokeStyle = "red";
       context.strokeRect(
         rectPosRef.current.x,
         rectPosRef.current.y,
         offsetX - rectPosRef.current.x,
-        e.shiftKey
+        e.shiftKey // shift key 를 이용하여 정사각형 그리기
           ? offsetX - rectPosRef.current.x
           : offsetY - rectPosRef.current.y
       );
@@ -115,14 +73,15 @@ const useDrawRect = ({
     });
   };
 
+  // 도형 그리기 끝, 도형 저장
   const drawEndRect = (e) => {
     isDrawingRectRef.current = false;
     drawConvertToSVG(e);
   };
 
+  // 도형 svg 형태로 저장
   const drawConvertToSVG = (e) => {
     const { offsetX, offsetY } = getCanvasCoordinates(e);
-    const { offsetSvgX, offsetSvgY } = getSvgCoordinates(e);
     const svgPathX = rectPosRef.current.x;
     const svgPathY = rectPosRef.current.y;
     const svgRotatePathX = svgRectCoordRef.current.x;
@@ -131,7 +90,7 @@ const useDrawRect = ({
     const rectX = svgRotatePathX;
     const rectY = svgRotatePathY;
     const rectWidth = offsetX - svgPathX;
-    const rectHeight = e.shiftKey ? offsetX - svgPathX : offsetY - svgPathY;
+    const rectHeight = e.shiftKey ? offsetX - svgPathX : offsetY - svgPathY; // shift key 를 이용하여 정사각형의 높이 구하기
 
     if (rectWidth > 0 && rectHeight > 0) {
       const newSvgRect = (
