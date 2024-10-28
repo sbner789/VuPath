@@ -72,6 +72,18 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
     setMoveOffset: setTranslateValue,
   });
 
+  const handleFullscreen = () => {
+    if (containerRef.current.requestFullscreen) {
+      containerRef.current.requestFullscreen();
+    } else if (containerRef.current.webkitRequestFullscreen) {
+      containerRef.current.webkitRequestFullscreen();
+    } else if (containerRef.current.mozRequestFullScreen) {
+      containerRef.current.mozRequestFullScreen();
+    } else if (containerRef.current.msRequestFullscreen) {
+      containerRef.current.msRequestFullscreen();
+    }
+  };
+
   useEffect(() => {
     loadImage();
   }, [rotateValue, currentImg]);
@@ -147,69 +159,80 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
             })}
           </svg>
         </div>
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          top: "10px",
-          left: "10px",
-          display: "flex",
-          gap: "10px",
-        }}
-      >
-        <button
-          onClick={() => handleZoom("in")}
-          style={{ fontSize: "20px", padding: "5px", boxSizing: "border-box" }}
-          disabled={scaleValue >= 40}
-        >
-          +
-        </button>
-        <button
-          onClick={() => handleZoom("out")}
-          style={{ fontSize: "20px" }}
-          disabled={scaleValue <= 1}
-        >
-          -
-        </button>
-        <button
-          onClick={() => {
-            handleRotate(30);
+        <div
+          style={{
+            position: "absolute",
+            top: "10px",
+            left: "10px",
+            display: "flex",
+            gap: "10px",
           }}
-          style={{ fontSize: "20px" }}
         >
-          +30&#186;
-        </button>
-        <button
-          onClick={() => {
-            handleRotate(-30);
-          }}
-          style={{ fontSize: "20px" }}
-        >
-          -30&#186;
-        </button>
-        <button
-          onClick={handlePrev}
-          style={{ fontSize: "20px" }}
-          disabled={currentImg < 1}
-        >
-          Prev
-        </button>
-        <button
-          onClick={handleNext}
-          style={{ fontSize: "20px" }}
-          disabled={images.length - 1 == currentImg}
-        >
-          Next
-        </button>
-        <button
-          onClick={() => {
-            setIsDrawRect(!isDrawRect);
-            isDrawRect ? setIsMove(true) : setIsMove(false);
-          }}
-          style={{ fontSize: "20px" }}
-        >
-          {isDrawRect ? "Stop Rect" : "Start Rect"}
-        </button>
+          <button
+            onClick={() => handleZoom("in")}
+            style={{
+              fontSize: "20px",
+              padding: "5px",
+              boxSizing: "border-box",
+            }}
+            disabled={scaleValue >= 40}
+          >
+            +
+          </button>
+          <button
+            onClick={() => handleZoom("out")}
+            style={{ fontSize: "20px" }}
+            disabled={scaleValue <= 1}
+          >
+            -
+          </button>
+          <button
+            onClick={(e) => {
+              handleFullscreen(e);
+            }}
+          >
+            fullscreen
+          </button>
+          <button
+            onClick={() => {
+              handleRotate(30);
+            }}
+            style={{ fontSize: "20px" }}
+          >
+            +30&#186;
+          </button>
+          <button
+            onClick={() => {
+              handleRotate(-30);
+            }}
+            style={{ fontSize: "20px" }}
+          >
+            -30&#186;
+          </button>
+          <button
+            onClick={handlePrev}
+            style={{ fontSize: "20px" }}
+            disabled={currentImg < 1}
+          >
+            Prev
+          </button>
+          <button
+            onClick={handleNext}
+            style={{ fontSize: "20px" }}
+            disabled={images.length - 1 == currentImg}
+          >
+            Next
+          </button>
+          <button
+            onClick={() => {
+              setIsDrawRect(!isDrawRect);
+              isDrawRect ? setIsMove(true) : setIsMove(false);
+            }}
+            style={{ fontSize: "20px" }}
+          >
+            {isDrawRect ? "Stop Rect" : "Start Rect"}
+          </button>
+        </div>
       </div>
     </div>
   );
