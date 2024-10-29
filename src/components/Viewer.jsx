@@ -16,17 +16,20 @@ const default_size = {
 };
 
 const Viewer = ({ imgSizeW, imgSizeH }) => {
-  const canvasRef = useRef(null); //canvas 접근
-  const imageRef = useRef(new Image()); // image 객체 생성
-  const images = [img1, img2]; // 가져올 이미지 배열, 추후 api data 활용
-  const containerRef = useRef(null); // zoom, pan 기능 객체 접근
-  const [translateValue, setTranslateValue] = useState(default_position); // 움직일 객체의 x, y 좌표
-  const [currentImg, setCurrentImg] = useState(0); // 현재 보고 있는 이미지
-  const [rotateValue, setRotateValue] = useState(0); // 로테이션 초기값
-  const [scaleValue, setScaleValue] = useState(1); // 스케일 초기값
-  const [svgSize, setSvgSize] = useState(default_size); // canvas 의 크기에 맞게 svg 크기 동일화
-  const [isDrawRect, setIsDrawRect] = useState(false); // 그림 그리기 시작
-  const [isMove, setIsMove] = useState(true); // 움직임 시작
+  const canvasRef = useRef(null);
+  const imageRef = useRef(new Image());
+  const images = [img1, img2];
+  const containerRef = useRef(null);
+  const trackerRef = useRef(null);
+  const miniMapRef = useRef(null);
+  const [translateValue, setTranslateValue] = useState(default_position);
+  const [currentImg, setCurrentImg] = useState(0);
+  const [rotateValue, setRotateValue] = useState(0);
+  const [scaleValue, setScaleValue] = useState(1);
+  const [svgSize, setSvgSize] = useState(default_size);
+  const [isDrawRect, setIsDrawRect] = useState(false);
+  const [isMove, setIsMove] = useState(true);
+  const [miniMapPosition, setMiniMapPosition] = useState(default_position);
 
   const { loadImage } = useCanvas({
     canvasCurrent: canvasRef,
@@ -54,12 +57,14 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
   const {
     handleWheel,
     handleZoom,
+    handleClickZoom,
     handleStartMove,
     handleMove,
     handleMoveStop,
     handleRotate,
     handleNext,
     handlePrev,
+    handleFullscreen,
   } = useMovements({
     container: containerRef,
     images: images,
@@ -72,21 +77,20 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
     setMoveOffset: setTranslateValue,
   });
 
-  const handleFullscreen = () => {
-    if (containerRef.current.requestFullscreen) {
-      containerRef.current.requestFullscreen();
-    } else if (containerRef.current.webkitRequestFullscreen) {
-      containerRef.current.webkitRequestFullscreen();
-    } else if (containerRef.current.mozRequestFullScreen) {
-      containerRef.current.mozRequestFullScreen();
-    } else if (containerRef.current.msRequestFullscreen) {
-      containerRef.current.msRequestFullscreen();
-    }
-  };
-
   useEffect(() => {
     loadImage();
   }, [rotateValue, currentImg]);
+
+  const offsetTracker = (e) => {
+    const rect = trackerRef.current.getBoundingClientRect();
+    const miniMapRect = miniMapRef.current.getBoundingClientRect();
+    const offsetTrackerX = (e.clientX - rect.left) * 0.1;
+    const offsetTrackerY = (e.clientY - rect.top) * 0.1;
+    setMiniMapPosition({
+      x: offsetTrackerX,
+      y: offsetTrackerY,
+    });
+  };
 
   return (
     <div>
@@ -114,6 +118,21 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
             transformOrigin: "0 0",
           }}
         >
+          <div
+            ref={trackerRef}
+            style={{
+              position: "absolute",
+              width: `${imgSizeW}px`,
+              height: `${imgSizeH}px`,
+              border: "2px solid black",
+              boxSizing: "border-box",
+              pointerEvents: "none",
+              transform: `rotate(${rotateValue}deg)`,
+            }}
+            // onMouseMove={(e) => {
+            //   offsetTracker(e);
+            // }}
+          />
           <canvas
             ref={canvasRef}
             onWheel={(e) => {
@@ -126,10 +145,14 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
             onMouseMove={(e) => {
               isDrawRect && drawRect(e);
               isMove && handleMove(e);
+              offsetTracker(e);
             }}
             onMouseUp={(e) => {
               isDrawRect && drawEndRect(e);
               isMove && handleMoveStop(e);
+            }}
+            onClick={(e) => {
+              !isDrawRect && handleClickZoom(e);
             }}
           ></canvas>
           <svg
@@ -169,18 +192,16 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
           }}
         >
           <button
-            onClick={() => handleZoom("in")}
+            onClick={() => handleZoom("+5")}
             style={{
               fontSize: "20px",
-              padding: "5px",
-              boxSizing: "border-box",
             }}
             disabled={scaleValue >= 40}
           >
             +
           </button>
           <button
-            onClick={() => handleZoom("out")}
+            onClick={() => handleZoom("-5")}
             style={{ fontSize: "20px" }}
             disabled={scaleValue <= 1}
           >
@@ -232,6 +253,49 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
           >
             {isDrawRect ? "Stop Rect" : "Start Rect"}
           </button>
+        </div>
+        <div
+          ref={miniMapRef}
+          style={{
+            position: "absolute",
+            top: "10px",
+            right: "10px",
+            width: "250px",
+            height: "250px",
+            background: "rgba(0, 0, 0, 0.7)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              // display: "flex",
+              // justifyContent: "center",
+              // alignItems: "center",
+              width: "100%",
+              height: "100%",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                width: "10px",
+                height: "10px",
+                border: `${scaleValue}px solid red`,
+                boxSizing: "border-box",
+                transform: `translate(${miniMapPosition.x}px, ${
+                  miniMapPosition.y
+                }px) scale(${1 / scaleValue})`,
+                transformOrigin: "0 0",
+              }}
+            />
+            <img
+              style={{
+                width: "100%",
+              }}
+              src={images[currentImg]}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 const default_position = {
   x: 0,
@@ -26,7 +26,14 @@ const useMovements = ({
 
   const zoomAble = (direction, mouseX, mouseY) => {
     const newScale =
-      direction === "in" ? scale + zoomIntensity : scale - zoomIntensity;
+      // direction === "in" ? scale + zoomIntensity : scale - zoomIntensity;
+      direction === "in"
+        ? scale + zoomIntensity
+        : direction === "+5"
+        ? scale + 5
+        : direction === "-5"
+        ? scale - 5
+        : scale - zoomIntensity;
     const clampedScale = Math.min(Math.max(newScale, minScale), maxScale);
 
     const scaleRatio = clampedScale / scale;
@@ -61,6 +68,19 @@ const useMovements = ({
     const mouseX = lastMousePosRef.current.x || rect.width / 2;
     const mouseY = lastMousePosRef.current.y || rect.height / 2;
     zoomAble(direction, mouseX, mouseY);
+  };
+
+  const handleClickZoom = (e) => {
+    if (e.shiftKey) {
+      const rect = container.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      lastMousePosRef.current = {
+        x: mouseX,
+        y: mouseY,
+      };
+      zoomAble("in", mouseX, mouseY);
+    }
   };
 
   const handleStartMove = (e) => {
@@ -99,15 +119,36 @@ const useMovements = ({
     }
   };
 
+  const handleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (container.current.requestFullscreen)
+        return container.current.requestFullscreen();
+      if (container.current.webkitRequestFullscreen)
+        return container.current.webkitRequestFullscreen();
+      if (container.current.mozRequestFullScreen)
+        return container.current.mozRequestFullScreen();
+      if (container.current.msRequestFullscreen)
+        return container.current.msRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) return document.exitFullscreen();
+      if (document.webkitCancelFullscreen)
+        return document.webkitCancelFullscreen();
+      if (document.mozCancelFullScreen) return document.mozCancelFullScreen();
+      if (document.msExitFullscreen) return document.msExitFullscreen();
+    }
+  };
+
   return {
     handleWheel,
     handleZoom,
+    handleClickZoom,
     handleStartMove,
     handleMove,
     handleMoveStop,
     handleRotate,
     handleNext,
     handlePrev,
+    handleFullscreen,
   };
 };
 export default useMovements;
