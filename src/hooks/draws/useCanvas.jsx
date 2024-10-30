@@ -111,6 +111,7 @@ const useCanvas = ({
     loadImage,
     getCanvasCoordinates,
     getSvgCoordinates,
+    rotatePoint,
   };
 };
 export default useCanvas;
