@@ -31,7 +31,7 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
   const [isMove, setIsMove] = useState(true);
   const [miniMapPosition, setMiniMapPosition] = useState(default_position);
 
-  const { loadImage } = useCanvas({
+  const { loadImage, rotatePoint } = useCanvas({
     canvasCurrent: canvasRef,
     useImg: imageRef,
     images: images,
@@ -81,41 +81,25 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
     loadImage();
   }, [rotateValue, currentImg]);
 
-  // const offsetTracker = (e) => {
-  //   const rect = trackerRef.current.getBoundingClientRect();
-  //   const offsetTrackerX = (((e.clientX - rect.left) / 250) * 48) / scaleValue;
-  //   const offsetTrackerY = (((e.clientY - rect.top) / 250) * 48) / scaleValue;
-  // const offsetTrackerX =
-  //   (((e.clientX - rect.left) / miniMapRect.width) * 32.6) / scaleValue;
-  // const offsetTrackerY =
-  //   (((e.clientY - rect.top) / miniMapRect.height) * 32.6) / scaleValue;
-
-  //   setMiniMapPosition({
-  //     x: offsetTrackerX,
-  //     y: offsetTrackerY,
-  //   });
-  // };
-
   const offsetTracker = (e) => {
     const rect = trackerRef.current.getBoundingClientRect();
     const miniMapRect = miniMapRef.current.getBoundingClientRect();
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
 
-    const widthRatio = rect.width / miniMapRect.width;
+    const widthRatio = miniMapRect.width / rect.width;
 
-    // const offsetTrackerX =
-    //   (((e.clientX - rect.left) / miniMapRect.width) * 32.6) / scaleValue;
-    // const offsetTrackerY =
-    //   (((e.clientY - rect.top) / miniMapRect.height) * 32.6) / scaleValue;
-    const offsetTrackerX =
-      (((e.clientX - rect.left) / miniMapRect.width) * rect.width) /
-      16 /
-      scaleValue;
-    const offsetTrackerY =
-      (((e.clientY - rect.top) / miniMapRect.height) * rect.width) /
-      16 /
-      scaleValue;
+    const offsetTrackerX = e.clientX * widthRatio - rect.left * widthRatio;
+    const offsetTrackerY = e.clientY * widthRatio - rect.top * widthRatio;
+
+    const centerX = miniMapRect.width / 2;
+    const centerY = miniMapRect.height / 2;
+
+    const { x: offsetMiniX, y: offsetMiniY } = rotatePoint(
+      offsetTrackerX,
+      offsetTrackerY,
+      -rotateValue,
+      centerX,
+      centerY
+    );
 
     setMiniMapPosition({
       x: offsetTrackerX,
@@ -133,6 +117,7 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
           width: "1920px",
           height: "1080px",
           overflow: "hidden",
+          borderRadius: "6px",
         }}
       >
         <div
@@ -149,18 +134,6 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
             transformOrigin: "0 0",
           }}
         >
-          <div
-            ref={trackerRef}
-            style={{
-              position: "absolute",
-              width: `${imgSizeW}px`,
-              height: `${imgSizeH}px`,
-              border: "2px solid black",
-              boxSizing: "border-box",
-              pointerEvents: "none",
-              transform: `rotate(${rotateValue}deg)`,
-            }}
-          />
           <canvas
             ref={canvasRef}
             onWheel={(e) => {
@@ -175,7 +148,6 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
             onMouseMove={(e) => {
               isDrawRect && drawRect(e);
               isMove && handleMove(e);
-              offsetTracker(e);
             }}
             onMouseUp={(e) => {
               isDrawRect && drawEndRect(e);
@@ -186,6 +158,16 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
               !isDrawRect && handleClickZoom(e);
             }}
           ></canvas>
+          <div
+            ref={trackerRef}
+            style={{
+              position: "absolute",
+              width: `${imgSizeW}px`,
+              height: `${imgSizeH}px`,
+              pointerEvents: "none",
+              transform: `rotate(${rotateValue}deg)`,
+            }}
+          />
           <svg
             width={svgSize.w}
             height={svgSize.h}
@@ -290,58 +272,52 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
             position: "absolute",
             top: "10px",
             right: "10px",
-            width: "500px",
-            height: "500px",
+            width: "250px",
+            height: "250px",
             background: "rgba(0, 0, 0, 0.7)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
             overflow: "hidden",
+            borderRadius: "3px",
           }}
         >
           <div
             ref={miniMapRef}
             style={{
-              width: "100%",
-              height: "100%",
+              position: "relative",
+              top: 0,
+              left: 0,
+              width: "auto",
+              height: "auto",
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              border: "1px solid green",
-              boxSizing: "border-box",
             }}
           >
             <div
               style={{
-                position: "relative",
-                width: "auto",
-                height: "auto",
-                border: "1px solid magenta",
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "250px",
+                height: "250px",
+                border: scaleValue > 1 ? `${scaleValue}px solid red` : "none",
                 boxSizing: "border-box",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
+                transform: `translate(${
+                  scaleValue > 1 ? miniMapPosition.x - 125 : 0
+                }px, ${scaleValue > 1 ? miniMapPosition.y - 125 : 0}px) scale(${
+                  1 / scaleValue
+                })`,
+                transformOrigin: "50% 50%",
               }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: `${0}px`,
-                  left: `${0}px`,
-                  width: "50px",
-                  height: "50px",
-                  border: `${scaleValue}px solid red`,
-                  boxSizing: "border-box",
-                  transform: `translate(${miniMapPosition.x}px, ${
-                    miniMapPosition.y
-                  }px) scale(${1 / scaleValue})`,
-                  transformOrigin: "0 0",
-                }}
-              />
-              <img
-                style={{
-                  width: "100%",
-                }}
-                src={images[currentImg]}
-              />
-            </div>
+            />
+            <img
+              style={{
+                width: "100%",
+              }}
+              src={images[currentImg]}
+            />
           </div>
         </div>
       </div>
