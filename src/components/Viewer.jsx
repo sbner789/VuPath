@@ -102,14 +102,20 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
 
-    const offsetTrackerX =
-      (((e.clientX - rect.left) / miniMapRect.width) * 32.6) / scaleValue;
-    const offsetTrackerY =
-      (((e.clientY - rect.top) / miniMapRect.height) * 32.6) / scaleValue;
+    const widthRatio = rect.width / miniMapRect.width;
+
     // const offsetTrackerX =
-    //   (e.clientX - rect.left) / miniMapRect.width / scaleValue;
+    //   (((e.clientX - rect.left) / miniMapRect.width) * 32.6) / scaleValue;
     // const offsetTrackerY =
-    //   (e.clientY - rect.top) / miniMapRect.height / scaleValue;
+    //   (((e.clientY - rect.top) / miniMapRect.height) * 32.6) / scaleValue;
+    const offsetTrackerX =
+      (((e.clientX - rect.left) / miniMapRect.width) * rect.width) /
+      16 /
+      scaleValue;
+    const offsetTrackerY =
+      (((e.clientY - rect.top) / miniMapRect.height) * rect.width) /
+      16 /
+      scaleValue;
 
     setMiniMapPosition({
       x: offsetTrackerX,
