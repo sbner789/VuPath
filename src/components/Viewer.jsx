@@ -4,6 +4,8 @@ import img2 from "../test_images/won-young.jpg";
 import useDrawRect from "../hooks/draws/useDrawRect";
 import useMovements from "../hooks/movements/useMovements";
 import useCanvas from "../hooks/draws/useCanvas";
+import useMiniMap from "../hooks/minimap/useMiniMap";
+import MiniMap from "./MiniMap";
 
 const default_position = {
   x: 0,
@@ -11,8 +13,8 @@ const default_position = {
 };
 
 const default_size = {
-  x: 0,
-  y: 0,
+  w: 0,
+  h: 0,
 };
 
 const Viewer = ({ imgSizeW, imgSizeH }) => {
@@ -20,8 +22,6 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
   const imageRef = useRef(new Image());
   const images = [img1, img2];
   const containerRef = useRef(null);
-  const trackerRef = useRef(null);
-  const miniMapRef = useRef(null);
   const [translateValue, setTranslateValue] = useState(default_position);
   const [currentImg, setCurrentImg] = useState(0);
   const [rotateValue, setRotateValue] = useState(0);
@@ -29,7 +29,7 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
   const [svgSize, setSvgSize] = useState(default_size);
   const [isDrawRect, setIsDrawRect] = useState(false);
   const [isMove, setIsMove] = useState(true);
-  const [miniMapPosition, setMiniMapPosition] = useState(default_position);
+  const [showMap, setShowMap] = useState(true);
 
   const { loadImage } = useCanvas({
     canvasCurrent: canvasRef,
@@ -77,38 +77,15 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
     setMoveOffset: setTranslateValue,
   });
 
+  const { offsetTracker, miniMapRef, trackerRef, miniMapPosition } = useMiniMap(
+    {
+      rotate: rotateValue,
+    }
+  );
+
   useEffect(() => {
     loadImage();
   }, [rotateValue, currentImg]);
-
-  const offsetTracker = (e) => {
-    const rect = trackerRef.current.getBoundingClientRect();
-    const miniMapRect = miniMapRef.current.getBoundingClientRect();
-    const widthRatio = miniMapRect.width / rect.width;
-    const heightRatio = miniMapRect.height / rect.height;
-    const centerX = (rect.width / 2) * widthRatio;
-    const centerY = (rect.height / 2) * heightRatio;
-
-    console.log({ centerX }, { centerY });
-
-    const offsetTrackerX = (e.clientX - rect.left) * widthRatio;
-    const offsetTrackerY = (e.clientY - rect.top) * heightRatio;
-
-    const radians = (rotateValue * Math.PI) / 180;
-    const cos = Math.cos(radians);
-    const sin = Math.sin(radians);
-
-    const deltaX = offsetTrackerX - centerX;
-    const deltaY = offsetTrackerY - centerY;
-
-    const rotatedX = cos * deltaX + sin * deltaY + centerX;
-    const rotatedY = -sin * deltaX + cos * deltaY + centerY;
-
-    setMiniMapPosition({
-      x: rotatedX,
-      y: rotatedY,
-    });
-  };
 
   return (
     <div>
@@ -120,7 +97,6 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
           width: "1920px",
           height: "1080px",
           overflow: "hidden",
-          borderRadius: "6px",
         }}
       >
         <div
@@ -141,12 +117,12 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
             ref={canvasRef}
             onWheel={(e) => {
               handleWheel(e);
-              offsetTracker(e);
+              showMap && offsetTracker(e);
             }}
             onMouseDown={(e) => {
               isDrawRect && drawStartRect(e);
               isMove && handleStartMove(e);
-              offsetTracker(e);
+              showMap && offsetTracker(e);
             }}
             onMouseMove={(e) => {
               isDrawRect && drawRect(e);
@@ -156,7 +132,7 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
             onMouseUp={(e) => {
               isDrawRect && drawEndRect(e);
               isMove && handleMoveStop(e);
-              offsetTracker(e);
+              showMap && offsetTracker(e);
             }}
             onClick={(e) => {
               !isDrawRect && handleClickZoom(e);
@@ -169,8 +145,6 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
               width: `${imgSizeW}px`,
               height: `${imgSizeH}px`,
               pointerEvents: "none",
-              border: "2px solid red",
-              boxSizing: "border-box",
               visibility: "hidden",
             }}
           />
@@ -259,7 +233,7 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
           <button
             onClick={handleNext}
             style={{ fontSize: "20px" }}
-            disabled={images.length - 1 == currentImg}
+            disabled={images.length - 1 === currentImg}
           >
             Next
           </button>
@@ -272,57 +246,23 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
           >
             {isDrawRect ? "Stop Rect" : "Start Rect"}
           </button>
-        </div>
-        <div
-          style={{
-            position: "absolute",
-            top: "10px",
-            right: "10px",
-            width: "250px",
-            height: "250px",
-            background: "rgba(0, 0, 0, 0.7)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            overflow: "hidden",
-            borderRadius: "3px",
-          }}
-        >
-          <div
-            ref={miniMapRef}
-            style={{
-              position: "relative",
-              width: "auto",
-              height: "auto",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              border: "1px solid green",
+          <button
+            onClick={() => {
+              setShowMap(!showMap);
             }}
           >
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "250px",
-                height: "250px",
-                border: scaleValue > 1 ? `${scaleValue}px solid red` : "none",
-                // border: `${scaleValue}px solid red`,
-                boxSizing: "border-box",
-                transform: `translate(${miniMapPosition.x - 125}px, ${
-                  miniMapPosition.y - 125
-                }px) scale(${1 / scaleValue})`,
-              }}
-            />
-            <img
-              style={{
-                width: "100%",
-              }}
-              src={images[currentImg]}
-            />
-          </div>
+            {showMap ? "close Map" : "open Map"}
+          </button>
         </div>
+        {showMap ? (
+          <MiniMap
+            miniMap={miniMapRef}
+            scale={scaleValue}
+            miniMapOffset={miniMapPosition}
+            images={images}
+            currentImg={currentImg}
+          />
+        ) : null}
       </div>
     </div>
   );
