@@ -94,8 +94,9 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
         style={{
           position: "relative",
           border: "2px solid magenta",
-          width: "1920px",
-          height: "1080px",
+          boxSizing: "border-box",
+          width: "100vw",
+          height: "100vh",
           overflow: "hidden",
         }}
       >
