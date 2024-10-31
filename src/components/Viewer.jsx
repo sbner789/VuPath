@@ -31,7 +31,7 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
   const [isMove, setIsMove] = useState(true);
   const [miniMapPosition, setMiniMapPosition] = useState(default_position);
 
-  const { loadImage, rotatePoint } = useCanvas({
+  const { loadImage } = useCanvas({
     canvasCurrent: canvasRef,
     useImg: imageRef,
     images: images,
@@ -84,26 +84,29 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
   const offsetTracker = (e) => {
     const rect = trackerRef.current.getBoundingClientRect();
     const miniMapRect = miniMapRef.current.getBoundingClientRect();
-
     const widthRatio = miniMapRect.width / rect.width;
+    const heightRatio = miniMapRect.height / rect.height;
+    const centerX = (rect.width / 2) * widthRatio;
+    const centerY = (rect.height / 2) * heightRatio;
 
-    const offsetTrackerX = e.clientX * widthRatio - rect.left * widthRatio;
-    const offsetTrackerY = e.clientY * widthRatio - rect.top * widthRatio;
+    console.log({ centerX }, { centerY });
 
-    const centerX = miniMapRect.width / 2;
-    const centerY = miniMapRect.height / 2;
+    const offsetTrackerX = (e.clientX - rect.left) * widthRatio;
+    const offsetTrackerY = (e.clientY - rect.top) * heightRatio;
 
-    const { x: offsetMiniX, y: offsetMiniY } = rotatePoint(
-      offsetTrackerX,
-      offsetTrackerY,
-      -rotateValue,
-      centerX,
-      centerY
-    );
+    const radians = (rotateValue * Math.PI) / 180;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+
+    const deltaX = offsetTrackerX - centerX;
+    const deltaY = offsetTrackerY - centerY;
+
+    const rotatedX = cos * deltaX + sin * deltaY + centerX;
+    const rotatedY = -sin * deltaX + cos * deltaY + centerY;
 
     setMiniMapPosition({
-      x: offsetTrackerX,
-      y: offsetTrackerY,
+      x: rotatedX,
+      y: rotatedY,
     });
   };
 
@@ -148,6 +151,7 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
             onMouseMove={(e) => {
               isDrawRect && drawRect(e);
               isMove && handleMove(e);
+              // offsetTracker(e);
             }}
             onMouseUp={(e) => {
               isDrawRect && drawEndRect(e);
@@ -165,7 +169,9 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
               width: `${imgSizeW}px`,
               height: `${imgSizeH}px`,
               pointerEvents: "none",
-              transform: `rotate(${rotateValue}deg)`,
+              border: "2px solid red",
+              boxSizing: "border-box",
+              visibility: "hidden",
             }}
           />
           <svg
@@ -286,13 +292,12 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
             ref={miniMapRef}
             style={{
               position: "relative",
-              top: 0,
-              left: 0,
               width: "auto",
               height: "auto",
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
+              border: "1px solid green",
             }}
           >
             <div
@@ -303,13 +308,11 @@ const Viewer = ({ imgSizeW, imgSizeH }) => {
                 width: "250px",
                 height: "250px",
                 border: scaleValue > 1 ? `${scaleValue}px solid red` : "none",
+                // border: `${scaleValue}px solid red`,
                 boxSizing: "border-box",
-                transform: `translate(${
-                  scaleValue > 1 ? miniMapPosition.x - 125 : 0
-                }px, ${scaleValue > 1 ? miniMapPosition.y - 125 : 0}px) scale(${
-                  1 / scaleValue
-                })`,
-                transformOrigin: "50% 50%",
+                transform: `translate(${miniMapPosition.x - 125}px, ${
+                  miniMapPosition.y - 125
+                }px) scale(${1 / scaleValue})`,
               }}
             />
             <img
